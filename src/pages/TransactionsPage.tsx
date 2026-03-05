@@ -37,11 +37,10 @@ function TransactionForm({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!categoryId) { setError('Select a category'); return; }
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt <= 0) { setError('Enter a valid amount'); return; }
     try {
-      await onSubmit({ type, amount: amt, description, date, category_id: categoryId });
+      await onSubmit({ type, amount: amt, description, date, ...(categoryId != null && { category_id: categoryId }) });
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } }; message?: string };
       setError(e?.response?.data?.error || e?.message || 'Failed to save');
@@ -68,13 +67,13 @@ function TransactionForm({
       <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
       <Input label="Description (optional)" type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What was this for?" />
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Category <span className="font-normal text-gray-400">(optional)</span></label>
         <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
           {filtered.map((c) => (
             <button
               key={c.id}
               type="button"
-              onClick={() => setCategoryId(c.id)}
+              onClick={() => setCategoryId(categoryId === c.id ? null : c.id)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                 categoryId === c.id ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
               }`}
