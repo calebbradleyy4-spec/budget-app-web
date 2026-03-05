@@ -1,4 +1,4 @@
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState, FormEvent, useMemo } from 'react';
 import { useTransactionsStore } from '../store/transactions.store';
 import { useCategoriesStore } from '../store/categories.store';
 import type { CategoryDTO } from '../types/shared';
@@ -32,15 +32,23 @@ function TransactionForm({
   const [categoryId, setCategoryId] = useState<number | null>(initial?.category_id ?? null);
   const [error, setError] = useState('');
 
-  const filtered = categories.filter((c) => c.type === type);
+  const filtered = useMemo(() => categories.filter((c) => c.type === type), [categories, type]);
+
+  // Auto-select first category when none is chosen yet
+  useEffect(() => {
+    if (categoryId == null && filtered.length > 0) {
+      setCategoryId(filtered[0].id);
+    }
+  }, [filtered]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt <= 0) { setError('Enter a valid amount'); return; }
+    if (categoryId == null) { setError('Please select a category'); return; }
     try {
-      await onSubmit({ type, amount: amt, description, date, ...(categoryId != null && { category_id: categoryId }) });
+      await onSubmit({ type, amount: amt, description, date, category_id: categoryId });
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } }; message?: string };
       setError(e?.response?.data?.error || e?.message || 'Failed to save');
@@ -54,7 +62,7 @@ function TransactionForm({
           <button
             key={t}
             type="button"
-            onClick={() => { setType(t); setCategoryId(null); }}
+            onClick={() => { setType(t); setCategoryId(categories.filter(c => c.type === t)[0]?.id ?? null); }}
             className={`flex-1 py-2 text-sm font-medium transition-colors ${
               type === t ? (t === 'income' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700') : 'bg-white text-gray-500 hover:bg-gray-50'
             }`}
@@ -67,13 +75,13 @@ function TransactionForm({
       <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
       <Input label="Description (optional)" type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What was this for?" />
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Category <span className="font-normal text-gray-400">(optional)</span></label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
         <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
           {filtered.map((c) => (
             <button
               key={c.id}
               type="button"
-              onClick={() => setCategoryId(categoryId === c.id ? null : c.id)}
+              onClick={() => setCategoryId(c.id)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                 categoryId === c.id ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
               }`}
